@@ -1,0 +1,33 @@
+# Copyright (c) 2010
+#	Thorsten Glaser <t.glaser@tarent.de>
+# This file is provided under the same terms as mksh.
+#-
+# Minimal /system/etc/mkshrc for Android
+
+: ${TERM:=xterm-256color} ${HOME=<SDCARD>} ${MKSH:=<BIN>/bash} ${HOSTNAME:=android}
+: ${SHELL:=$MKSH} ${USER=$(getprop ro.product.device)}
+
+if [ -d "/sbin/.magisk/busybox" ]; then
+  BBDIR="/sbin/.magisk/busybox"
+elif [ -d "/sbin/.core/busybox" ]; then
+  BBDIR="/sbin/.core/busybox"
+fi
+
+PATH=$BBDIR:$PATH
+export TERM HOME MKSH HOSTNAME SHELL USER PATH
+
+# Directories to add to the PATH
+directories=("/sbin" "/system/sbin" "/odm/bin" "/vendor/bin" "/vendor/xbin" "/data/adb/modules/ssh/usr/bin")
+
+# Loop through each directory and check/add to PATH
+for dir in "${directories[@]}"; do
+  # Check if the directory is not in the current $PATH
+  if [[ ":$PATH:" != *":$dir:"* ]]; then
+    # If not present, add it to the $PATH
+    export PATH="$PATH:$dir"
+  fi
+done
+
+cd /data/local/tmp/
+
+exec env HOME=<SDCARD> <BIN>/bash --rcfile <SDCARD>/.bashrc

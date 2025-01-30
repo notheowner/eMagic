@@ -1,0 +1,7 @@
+id=emagic
+name=eMagic
+version=v1
+versionCode=100
+author=owner
+description=Useful binaries and minimal mitm utilities.
+minMagisk=20000

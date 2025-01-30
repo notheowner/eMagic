@@ -1,0 +1,157 @@
+#!/usr/bin/env bash
+
+## Perf. optimization: https://stackoverflow.com/questions/18039751/how-to-debug-a-bash-script-and-get-execution-time-per-command
+## Uncomment one of the following line for debugging this file
+# PS4=$'+ $(tput sgr0)$(tput setaf 4)DEBUG ${FUNCNAME[0]:+${FUNCNAME[0]}}$(tput bold)[$(tput setaf 6)${LINENO}$(tput setaf 4)]: $(tput sgr0)'; set -o xtrace
+# N=`date +%s%N`; export PS4='+[$(((`date +%s%N`-$N)/1000000))ms][${BASH_SOURCE}:${LINENO}]: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'; set -x;
+
+## If not running interactively, don't do anything
+[[ $- != *i* ]] && return
+
+# Changes dir to /data/local/tmp because it's the most used one
+cd "/data/local/tmp" || true
+
+# Loads inputrc
+if [ -f /sdcard/.inputrc ]; then
+    bind -f /sdcard/.inputrc
+fi
+
+### Env Variables ### 
+export EDITOR="nano"
+
+### BASH HISTORY ###
+# Change the file location because certain bash sessions truncate .bash_history file upon close:
+export HISTFILE=~/.bash_eternal_history-$USER
+# Maximum number of entries on the current session (nothing is infinite):
+export HISTSIZE=5000000
+# Maximum number of lines in HISTFILE (nothing is infinite).
+export HISTFILESIZE=10000000
+# Commands to ignore and skip saving
+export HISTIGNORE="clear:exit:history:ls"
+# Ignores dupes and deletes old ones (latest doesn't work _quite_ properly, but does the trick)
+export HISTCONTROL=ignoredups:erasedups
+# Custom history time prefix format
+export HISTTIMEFORMAT='[%F %T] '
+# Writes multiline commands on the history as multiline entries
+shopt -s cmdhist
+shopt -s lithist
+# Appends to history after every command instead of only after the shell session ends.
+shopt -s histappend
+
+# Loads auto-complete stuff
+if [ -f /sdcard/.bash-completion/bash_completion ]; then
+    . /sdcard/.bash-completion/bash_completion 2>/dev/null
+fi
+
+## True screen clearing
+function _clear() {
+    echo -en "\033c"
+}
+
+## Extracts compressed and archived files of any type
+function extract() {
+    for n in "$@"; do
+        if [ -f "$n" ]; then
+            case "${n%,}" in
+            *.cbt | *.tar.bz2 | *.tar.gz | *.tar.xz | *.tbz2 | *.tgz | *.txz | *.tar)
+                tar xvf "$n"
+                ;;
+            *.lzma) unlzma ./"$n" ;;
+            *.bz2) bunzip2 ./"$n" ;;
+            *.cbr | *.rar) unrar x -ad ./"$n" ;;
+            *.gz) gunzip ./"$n" ;;
+            *.cbz | *.epub | *.zip) unzip ./"$n" ;;
+            *.z) uncompress ./"$n" ;;
+            *.7z | *.arj | *.cab | *.cb7 | *.chm | *.deb | *.dmg | *.iso | *.lzh | *.msi | *.pkg | *.rpm | *.udf | *.wim | *.xar)
+                7z x ./"$n"
+                ;;
+            *.xz) unxz ./"$n" ;;
+            *.exe) cabextract ./"$n" ;;
+            *.cpio) cpio -id <./"$n" ;;
+            *.cba | *.ace) unace x ./"$n" ;;
+            *)
+                echo "extract: '$n' - unknown archive method"
+                return 1
+                ;;
+            esac
+        else
+            echo "'$n' - file does not exist"
+            return 1
+        fi
+    done
+}
+
+## Alias stuff
+alias diff="diff -b -B -U 5"
+alias watch="watch -n 0.5"
+alias dd="dd status=progress oflag=sync"
+alias clear='_clear'
+alias ls='ls -ltr --color=always'
+alias sed="sed -E"
+alias logcat="logcat -b all -v color -v usec -v uid"
+
+export ANDROID_DATA=/data;
+export ANDROID_ROOT=/data;
+
+# Astu's monstrosity
+runningMitm() { 
+    busybox ps aux | grep -E -C0 "pokemod|gocheats|sy1vi3|ares" | \
+        grep -C0 -v grep | \
+        awk -F ' ' '
+            /com.pokemod/ { print $NF } 
+            /com.sy1vi3/ { print $NF } 
+            /com.nianticlabs.pokemongo.ares/ { print $NF } 
+            /com.gocheats.launcher/ { print $NF }
+        ' | \
+        grep -E -C0 "gocheats|pokemod|sy1vi3|ares" | \
+        sed -e 's/^[0-9]*://' -e 's@:.*@@g' | \
+        sort | uniq
+}
+
+installedMitm() {
+    MITM_PACKAGES="
+        com.pokemod.aegis.beta
+        com.pokemod.aegis
+        com.sy1vi3.cosmog
+        com.nianticlabs.pokemongo.ares
+        com.gocheats.launcher
+    "
+
+    for pkg in $MITM_PACKAGES; do
+        if [ "$(pm list packages "$pkg")" = "package:$pkg" ]; then
+            case "$pkg" in
+                com.pokemod.aegis.beta)
+                    log -p i -t eMagiskATVService "Found Aegis developer version!"
+                    ;;
+                com.pokemod.aegis)
+                    log -p i -t eMagiskATVService "Found Aegis production version!"
+                    ;;
+                com.sy1vi3.cosmog)
+                    log -p i -t eMagiskATVService "Found Cosmog!"
+                    ;;
+                com.nianticlabs.pokemongo.ares)
+                    log -p i -t eMagiskATVService "Found Cosmog (Ares pkg name version)!"
+                    ;;
+                com.gocheats.launcher)
+                    log -p i -t eMagiskATVService "Found GC!"
+                    ;;
+            esac
+            MITMPKG="$pkg"
+            return 0
+        fi
+    done
+
+    log -p i -t eMagiskATVService "No MITM installed. Abort!"
+    exit 1
+}
+
+MITMPKG=$(installedMitm)
+POGOPKG=com.nianticlabs.pokemongo
+CONFIGFILE='/data/local/tmp/emagic.config'
+
+temperature() {
+    cat /sys/class/thermal/thermal_zone0/temp | busybox awk '{print substr($0, 1, length($0)-3)}'
+}
+
+## Prompt in alien language(bash)
+export PS1='\[\e[1;31m\]\$ \[\e[1;32m\]${USER:-unknown}\[\e[0m\]@\[\e[1;36m\]$(getprop ro.product.device)\[\e[0m\]:\[\e[1;34m\]\w\[\e[0m\] '
