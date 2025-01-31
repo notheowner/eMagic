@@ -2,17 +2,18 @@
 
 # Base stuff we need
 POGOPKG=com.nianticlabs.pokemongo
-CONFIGFILE='/data/local/tmp/emagisk.config'
+CONFIGFILE='/data/local/tmp/emagic.config'
+logfile=/data/local/tmp/emagic.log
 setprop net.dns1 1.1.1.1 && setprop net.dns2 8.8.8.8
+
 # Check if $CONFIGFILE exists and has data.
-# Data stored as global variables using export
 get_config() {
 	if [[ -s $CONFIGFILE ]]; then
-		log -p i -t eMagiskATVService "$CONFIGFILE exists and has data. Data will be pulled."
+		log "$CONFIGFILE exists and has data. Data will be pulled."
 		source $CONFIGFILE
 		export discord_webhook timezone autoupdate
 	else
-		log -p i -t eMagiskATVService "Failed to pull the config file. Make sure $($CONFIGFILE) exists and has the correct data."
+		log "Failed to pull the config file. Make sure $($CONFIGFILE) exists and has the correct data."
 	fi
 }
 get_config
@@ -44,19 +45,19 @@ installedMitm() {
         if [ "$(pm list packages "$pkg")" = "package:$pkg" ]; then
             case "$pkg" in
                 com.pokemod.aegis.beta)
-                    log -p i -t eMagiskATVService "Found Aegis developer version!"
+                    log "Found Aegis developer version!"
                     ;;
                 com.pokemod.aegis)
-                    log -p i -t eMagiskATVService "Found Aegis production version!"
+                    log "Found Aegis production version!"
                     ;;
                 com.sy1vi3.cosmog)
-                    log -p i -t eMagiskATVService "Found Cosmog!"
+                    log "Found Cosmog!"
                     ;;
                 com.nianticlabs.pokemongo.ares)
-                    log -p i -t eMagiskATVService "Found Cosmog (Ares pkg name version)!"
+                    log "Found Cosmog (Ares pkg name version)!"
                     ;;
                 com.gocheats.launcher)
-                    log -p i -t eMagiskATVService "Found GC!"
+                    log "Found GC!"
                     ;;
             esac
             MITMPKG="$pkg"
@@ -64,21 +65,29 @@ installedMitm() {
         fi
     done
 
-    log -p i -t eMagiskATVService "No MITM installed. Abort!"
+    log "No MITM installed. Abort!"
     exit 1
+}
+
+# Keeping this for the webhook mainly
+getDeviceName() {
+    if [ -f /data/local/tmp/cosmog.json]; then
+        mitmDeviceName=$(jq -r '.device_id' /data/local/tmp/cosmog.json)
+    else
+        log "Config file not found."
 }
 
 # Send a webhook to discord if it's configured
 webhook() {
 	# Check if discord_webhook variable is set
 	if [[ -z "$discord_webhook" ]]; then
-		log -p i -t eMagiskATVService "discord_webhook variable is not set. Cannot send webhook."
+		log "discord_webhook variable is not set. Cannot send webhook."
 		return
 	fi
 
 	# Check internet connectivity by pinging 8.8.8.8 and 1.1.1.1
 	if ! ping -c 1 -W 1 8.8.8.8 >/dev/null && ! ping -c 1 -W 1 1.1.1.1 >/dev/null; then
-		log -p i -t eMagiskATVService "No internet connectivity. Skipping webhook."
+		log "No internet connectivity. Skipping webhook."
 		return
 	fi
 
@@ -96,10 +105,10 @@ webhook() {
 	playStoreVersion=$(dumpsys package com.android.vending | grep versionName |head -n 1|cut -d "=" -f 2)
 	android_version=$(getprop ro.build.version.release)
 	
-	get_deviceName
+	getDeviceName
 
 	# Get mitm version
-	mitm_version="$(dumpsys package "$MITMPKG" | awk -F "=" '/versionName/ {print $2}')"
+	mitm_version="$(dumpsys package "$installedMitm" | awk -F "=" '/versionName/ {print $2}')"
 
 	# Get pogo version
 	pogo_version="$(dumpsys package com.nianticlabs.pokemongo | awk -F "=" '/versionName/ {print $2}')"
@@ -120,7 +129,7 @@ webhook() {
                   --arg wanIp "$wan_ip" \
                   --arg mac "$mac_address" \
                   --arg temp "$temperature" \
-                  --arg mitm "$MITMPKG" \
+                  --arg mitm "$installedMitm" \
                   --arg mitmVersion "$mitm_version" \
                   --arg pogoVersion "$pogo_version" \
                   --arg playStoreVersion "$playStoreVersion" \
@@ -146,16 +155,16 @@ webhook() {
                     ]
                   }')
 
-	log -p i -t eMagiskATVService "Sending discord webhook"
+	log "Sending discord webhook"
 	# Upload the payload JSON and logcat logs to Discord
-    if [[ $MITMPKG == com.pokemod.atlas* ]]; then
+    if [[ $installedMitm == com.pokemod.atlas* ]]; then
         curl -X POST -k -H "Content-Type: multipart/form-data" \
         -F "payload_json=$payload_json" \
         -F "logcat=@$temp_dir/logcat_${MITMPKG}_${timestamp}_${mac_address_nodots}_selfSentLog.log" \
         -F "atlaslog=@/data/local/tmp/atlas.log" \
         "$discord_webhook"
     # Check for com.pokemod.aegis* package and send webhook with aegis.log (or specific log for aegis)
-    elif [[ $MITMPKG == com.pokemod.aegis* ]]; then
+    elif [[ $installedMitm == com.pokemod.aegis* ]]; then
 		curl -X POST -k -H "Content-Type: multipart/form-data" \
         -F "payload_json=$payload_json" \
         -F "logcat=@$temp_dir/logcat_${MITMPKG}_${timestamp}_${mac_address_nodots}_selfSentLog.log" \
@@ -174,52 +183,52 @@ webhook() {
 
 # Disable playstore alltogether (no auto updates)
 # if [ "$(pm list packages -e com.android.vending)" = "package:com.android.vending" ]; then
-	# log -p i -t eMagiskATVService "Disabling Play Store"
-	# pm disable-user com.android.vending
+# 	log "Disabling Play Store"
+# 	pm disable-user com.android.vending
 # fi
 
 # Set mitm mock location permission as ignore
-if ! appops get $MITMPKG android:mock_location | grep -qm1 'No operations'; then
-	log -p i -t eMagiskATVService "Removing mock location permissions from $MITMPKG"
-	appops set $MITMPKG android:mock_location 2
+if ! appops get $installedMitm android:mock_location | grep -qm1 'No operations'; then
+	log "Removing mock location permissions from $installedMitm"
+	appops set $installedMitm android:mock_location 2
 fi
 
 # Disable all location providers
 if ! settings get 2>/dev/null; then
-	log -p i -t eMagiskATVService "Checking allowed location providers as 'shell' user"
+	log "Checking allowed location providers as 'shell' user"
 	allowedProviders=".$(su shell -c settings get secure location_providers_allowed)"
 else
-	log -p i -t eMagiskATVService "Checking allowed location providers"
+	log "Checking allowed location providers"
 	allowedProviders=".$(settings get secure location_providers_allowed)"
 fi
 
 if [ "$allowedProviders" != "." ]; then
-	log -p i -t eMagiskATVService "Disabling location providers..."
+	log "Disabling location providers..."
 	if ! settings put secure location_providers_allowed -gps,-wifi,-bluetooth,-network >/dev/null; then
-		log -p i -t eMagiskATVService "Running as 'shell' user"
+		log "Running as 'shell' user"
 		su shell -c 'settings put secure location_providers_allowed -gps,-wifi,-bluetooth,-network'
 	fi
 fi
 
 # Make sure the device doesn't randomly turn off
 if [ "$(settings get global stay_on_while_plugged_in)" != 3 ]; then
-	log -p i -t eMagiskATVService "Setting Stay On While Plugged In"
+	log "Setting Stay On While Plugged In"
 	settings put global stay_on_while_plugged_in 3
 fi
 
 # Disable package verifier
 if [ "$(settings get global package_verifier_enable)" != 0 ]; then
-	log -p i -t eMagiskATVService "Disable package verifier"
+	log "Disable package verifier"
 	settings put global package_verifier_enable 0
 fi
 if [ "$(settings get global verifier_verify_adb_installs)" != 0 ]; then
-	log -p i -t eMagiskATVService "Disable package verifier over adb"
+	log "Disable package verifier over adb"
 	settings put global verifier_verify_adb_installs 0
 fi
 
 # Disable play protect
 if [ "$(settings get global package_verifier_user_consent)" != -1 ]; then
-	log -p i -t eMagiskATVService "Disable play protect"
+	log "Disable play protect"
 	settings put global package_verifier_user_consent -1
 fi
 
@@ -227,22 +236,22 @@ fi
 if [ -n "$timezone" ]; then
 	# Set the timezone using the variable
 	setprop persist.sys.timezone "$timezone"
-	log -p i -t eMagiskATVService "Timezone set to $timezone"
+	log "Timezone set to $timezone"
 else
-	log -p i -t eMagiskATVService "Timezone variable not set. Skipping timezone change."
+	log "Timezone variable not set. Skipping timezone change."
 fi
 
 # Check if ADB is disabled (adb_enabled is set to 0)
 adb_status=$(settings get global adb_enabled)
 if [ "$adb_status" -eq 0 ]; then
-	log -p i -t eMagiskATVService "ADB is currently disabled. Enabling it..."
+	log "ADB is currently disabled. Enabling it..."
 	settings put global adb_enabled 1
 fi
 
 # Check if ADB over Wi-Fi is disabled (adb_wifi_enabled is set to 0)
 adb_wifi_status=$(settings get global adb_wifi_enabled)
 if [ "$adb_wifi_status" -eq 0 ]; then
-    log -p i -t eMagiskATVService "ADB over Wi-Fi is currently disabled. Enabling it..."
+    log "ADB over Wi-Fi is currently disabled. Enabling it..."
     settings put global adb_wifi_enabled 1
 fi
 
@@ -251,7 +260,7 @@ adb_keys_file="/data/misc/adb/adb_keys"
 if [ -e "$adb_keys_file" ]; then
 	current_permissions=$(stat -c %a "$adb_keys_file")
 	if [ "$current_permissions" -ne 640 ]; then
-		log -p i -t eMagiskATVService  "Changing permissions for $adb_keys_file to 640..."
+		log  "Changing permissions for $adb_keys_file to 640..."
 		chmod 640 "$adb_keys_file"
 	fi
 fi
@@ -259,8 +268,44 @@ fi
 # Download cacert to use certs instead of curl -k 
 cacert_path="/data/local/tmp/cacert.pem"
 if [ ! -f "$cacert_path" ]; then
-	log -p i -t eMagiskATVService "Downloading cacert.pem..."
+	log "Downloading cacert.pem..."
 	curl -k -o "$cacert_path" https://curl.se/ca/cacert.pem
+fi
+
+if result=$(installedMitm); then
+    (
+        log "Starting in 2 minutes, found installed MITM: $installedMitm"
+        counter=0
+        log "Count at $counter"
+        webhook "Device boot!"
+
+        # this again... but simple(I think)
+        while :; do
+            sleep_duration=60
+            sleep $((sleep_duration+$RANDOM%10))
+            if [[$counter -gt 3]]; then
+                log "Count threshold of $counter reached. Rebooting device..."
+                webhook "Restart threshold of $counter reached. Rebooting device..."
+                reboot 
+                sleep 60 # In case reboot takes too long for some reason
+            fi
+
+            log "Health check started!"
+            if [[$installedMitm == "com.nianticlabs.pokemongo.ares"]]; then
+                if ! busybox ps -a | grep -v grep | grep "com.nianticlabs.pokemongo.ares"; then
+                    log "$installedMitm is not running, let's start it up!"
+                    am start -n $installedMitm/.MainActivity
+                    counter=$((counter+1))
+                else
+                    log "$installedMitm is running. Nothing to do here."
+                    counter=0
+                fi
+            fi
+            continue
+        done
+    ) &
+else 
+    log "No known MITM was found installed on the device. Cya."
 fi
 
 #ENDOFFILE
