@@ -154,4 +154,5 @@ temperature() {
 }
 
 ## Prompt in alien language(bash)
-export PS1='\[\e[1;31m\]\$ \[\e[1;32m\]${USER:-unknown}\[\e[0m\]@\[\e[1;36m\]$(getprop ro.product.device)\[\e[0m\]:\[\e[1;34m\]\w\[\e[0m\] '
+export PS1='\[\e]0;$(getprop ro.product.device) - \s\a\]\[\e[1;31m\]\$ \[\e[1;32m\]${USER:-unknown}\[\e[0m\]@\[\e[1;36m\]$(getprop ro.product.device)\[\e[0m\]:\[\e[1;34m\]\w\[\e[0m\] '
+
