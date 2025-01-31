@@ -39,9 +39,9 @@ shopt -s lithist
 shopt -s histappend
 
 # Loads auto-complete stuff
-if [ -f /sdcard/.bash-completion/bash_completion ]; then
-    . /sdcard/.bash-completion/bash_completion 2>/dev/null
-fi
+# if [ -f /sdcard/.bash-completion/bash_completion ]; then
+#     . /sdcard/.bash-completion/bash_completion 2>/dev/null
+# fi
 
 ## True screen clearing
 function _clear() {
