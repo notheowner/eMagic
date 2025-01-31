@@ -8,8 +8,8 @@ MODDIR=${0%/*}
 
 logfile=/data/local/tmp/emagic.log
 log() {
-    echo "$(date -u +"%Y-%m-%d %H:%M:%S") eMagisk | ${*}" >>$logfile
-    /system/bin/log -t eMagisk -p i "${@}"
+    echo "$(date -u +"%Y-%m-%d %H:%M:%S") eMagic | ${*}" >>$logfile
+    /system/bin/log -t eMagic -p i "${@}"
 }
 
 log "##################### Boot #####################"
