@@ -121,31 +121,29 @@ installedMitm() {
         if [ "$(pm list packages "$pkg")" = "package:$pkg" ]; then
             case "$pkg" in
                 com.pokemod.aegis.beta)
-                    log -p i -t eMagiskATVService "Found Aegis developer version!"
+                    echo "Found Aegis developer version!"
                     ;;
                 com.pokemod.aegis)
-                    log -p i -t eMagiskATVService "Found Aegis production version!"
+                    echo "Found Aegis production version!"
                     ;;
                 com.sy1vi3.cosmog)
-                    log -p i -t eMagiskATVService "Found Cosmog!"
+                    echo "Found Cosmog!"
                     ;;
                 com.nianticlabs.pokemongo.ares)
-                    log -p i -t eMagiskATVService "Found Cosmog (Ares pkg name version)!"
+                    echo "Found Cosmog (Ares pkg name version)!"
                     ;;
                 com.gocheats.launcher)
-                    log -p i -t eMagiskATVService "Found GC!"
+                    echo "Found GC!"
                     ;;
             esac
             MITMPKG="$pkg"
             return 0
         fi
     done
-
-    log -p i -t eMagiskATVService "No MITM installed. Abort!"
+    echo "No MITM installed. Abort!"
     exit 1
 }
 
-MITMPKG=$(installedMitm)
 POGOPKG=com.nianticlabs.pokemongo
 CONFIGFILE='/data/local/tmp/emagic.config'
 
