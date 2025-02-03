@@ -11,70 +11,63 @@ get_config() {
 	if [[ -s $CONFIGFILE ]]; then
 		log "$CONFIGFILE exists and has data. Data will be pulled."
 		source $CONFIGFILE
-		export discord_webhook timezone autoupdate
+		export timezone discord_webhook
 	else
 		log "Failed to pull the config file. Make sure $($CONFIGFILE) exists and has the correct data."
 	fi
 }
 get_config
 
-runningMitm() { 
-    busybox ps aux | grep -E -C0 "pokemod|gocheats|sy1vi3|ares" | \
-        grep -C0 -v grep | \
-        awk -F ' ' '
+runningMitm() {
+	busybox ps aux | grep -E -C0 "pokemod|gocheats|sy1vi3|ares" |
+		grep -C0 -v grep |
+		awk -F ' ' '
             /com.pokemod/ { print $NF } 
             /com.sy1vi3/ { print $NF } 
             /com.nianticlabs.pokemongo.ares/ { print $NF } 
             /com.gocheats.launcher/ { print $NF }
-        ' | \
-        grep -E -C0 "gocheats|pokemod|sy1vi3|ares" | \
-        sed -e 's/^[0-9]*://' -e 's@:.*@@g' | \
-        sort | uniq
+        ' |
+		grep -E -C0 "gocheats|pokemod|sy1vi3|ares" |
+		sed -e 's/^[0-9]*://' -e 's@:.*@@g' |
+		sort | uniq
 }
-
+MITMPKG=""
 installedMitm() {
-    MITM_PACKAGES="
-        com.pokemod.aegis.beta
-        com.pokemod.aegis
-        com.sy1vi3.cosmog
-        com.nianticlabs.pokemongo.ares
-        com.gocheats.launcher
-    "
-
-    for pkg in $MITM_PACKAGES; do
-        if [ "$(pm list packages "$pkg")" = "package:$pkg" ]; then
-            case "$pkg" in
-                com.pokemod.aegis.beta)
-                    log "Found Aegis developer version!"
-                    ;;
-                com.pokemod.aegis)
-                    log "Found Aegis production version!"
-                    ;;
-                com.sy1vi3.cosmog)
-                    log "Found Cosmog!"
-                    ;;
-                com.nianticlabs.pokemongo.ares)
-                    log "Found Cosmog (Ares pkg name version)!"
-                    ;;
-                com.gocheats.launcher)
-                    log "Found GC!"
-                    ;;
-            esac
-            MITMPKG="$pkg"
-            return 0
-        fi
-    done
-
-    log "No MITM installed. Abort!"
-    exit 1
+	if [ "$(pm list packages com.pokemod.aegis.beta)" = "package:com.pokemod.aegis.beta" ]; then
+		log "Found Aegis developer version!"
+		MITMPKG=com.pokemod.aegis.beta
+	elif [ "$(pm list packages com.pokemod.aegis)" = "package:com.pokemod.aegis" ]; then
+		log "Found Aegis production version!"
+		MITMPKG=com.pokemod.aegis
+	elif [ "$(pm list packages com.pokemod.atlas.beta)" = "package:com.pokemod.atlas.beta" ]; then
+		log "Found Atlas developer version!"
+		MITMPKG=com.pokemod.atlas.beta
+	elif [ "$(pm list packages com.nianticlabs.pokemongo.ares)" = "package:com.nianticlabs.pokemongo.ares" ]; then
+		log "Found Cosmog (Ares pkg name version)!"
+		MITMPKG=com.nianticlabs.pokemongo.ares
+	elif [ "$(pm list packages com.gocheats.launcher)" = "package:com.gocheats.launcher" ]; then
+		log "Found GC!"
+		MITMPKG=com.gocheats.launcher
+	else
+		log "No MITM installed. Abort!"
+		exit 1
+	fi
 }
+installedMitm
 
 # Keeping this for the webhook mainly
-getDeviceName() {
-    if [ -f /data/local/tmp/cosmog.json]; then
-        mitmDeviceName=$(jq -r '.device_id' /data/local/tmp/cosmog.json)
-    else
-        log "Config file not found."
+get_deviceName() {
+	if [[ $MITMPKG == com.pokemod.atlas* ]] && [ -f /data/local/tmp/atlas_config.json ]; then
+		mitmDeviceName=$(jq -r '.deviceName' /data/local/tmp/atlas_config.json)
+	elif [[ $MITMPKG == com.pokemod.aegis* ]] && [ -f /data/local/tmp/aegis_config.json ]; then
+		mitmDeviceName=$(jq -r '.deviceName' /data/local/tmp/aegis_config.json)
+	elif { [[ "$MITMPKG" == "com.sy1vi3.cosmog" || "$MITMPKG" == "com.nianticlabs.pokemongo.ares" ]] && [ -f /data/local/tmp/cosmog.json ]; }; then
+		mitmDeviceName=$(jq -r '.device_id' /data/local/tmp/cosmog.json)
+	elif [[ $MITMPKG == com.gocheats.launcher ]] && [ -f /data/local/tmp/config.json ]; then
+		mitmDeviceName=$(jq -r '.device_name' /data/local/tmp/config.json)
+	else
+		log -p i -t eMagiskATVService "Couldn't find the config file"
+	fi
 }
 
 # Send a webhook to discord if it's configured
@@ -98,17 +91,17 @@ webhook() {
 	local mac_address_nodots="$(ip link show eth0 | awk '/ether/ {print $2}' | tr -d ':')"
 	local timestamp="$(date +%Y-%m-%d_%H-%M-%S)"
 	local mitm_version="NOT INSTALLED"
-	local pogo_version="$(dumpsys package com.nianticlabs.pokemongo | grep versionName |cut -d "=" -f 2)"
+	local pogo_version="$(dumpsys package com.nianticlabs.pokemongo | grep versionName | cut -d "=" -f 2)"
 	local agent=""
 	local playStoreVersion=""
 	local temperature="$(cat /sys/class/thermal/thermal_zone0/temp | awk '{print substr($0, 1, length($0)-3)}')"
-	playStoreVersion=$(dumpsys package com.android.vending | grep versionName |head -n 1|cut -d "=" -f 2)
+	playStoreVersion=$(dumpsys package com.android.vending | grep versionName | head -n 1 | cut -d "=" -f 2)
 	android_version=$(getprop ro.build.version.release)
-	
+
 	getDeviceName
 
 	# Get mitm version
-	mitm_version="$(dumpsys package "$installedMitm" | awk -F "=" '/versionName/ {print $2}')"
+	mitm_version="$(dumpsys package "$MITMPKG" | awk -F "=" '/versionName/ {print $2}')"
 
 	# Get pogo version
 	pogo_version="$(dumpsys package com.nianticlabs.pokemongo | awk -F "=" '/versionName/ {print $2}')"
@@ -118,23 +111,23 @@ webhook() {
 	mkdir "$temp_dir"
 
 	# Retrieve the logcat logs
-	logcat -v colors -d > "$temp_dir/logcat_${MITMPKG}_${timestamp}_${mac_address_nodots}_selfSentLog.log"
-	
+	logcat -v colors -d >"$temp_dir/logcat_${MITMPKG}_${timestamp}_${mac_address_nodots}_selfSentLog.log"
+
 	# Create the payload JSON
 	payload_json=$(jq -n \
-                  --arg username "$mitmDeviceName" \
-                  --arg content "$message" \
-                  --arg deviceName "$mitmDeviceName" \
-                  --arg localIp "$local_ip" \
-                  --arg wanIp "$wan_ip" \
-                  --arg mac "$mac_address" \
-                  --arg temp "$temperature" \
-                  --arg mitm "$installedMitm" \
-                  --arg mitmVersion "$mitm_version" \
-                  --arg pogoVersion "$pogo_version" \
-                  --arg playStoreVersion "$playStoreVersion" \
-                  --arg androidVersion "$android_version" \
-                  '{
+		--arg username "$mitmDeviceName" \
+		--arg content "$message" \
+		--arg deviceName "$mitmDeviceName" \
+		--arg localIp "$local_ip" \
+		--arg wanIp "$wan_ip" \
+		--arg mac "$mac_address" \
+		--arg temp "$temperature" \
+		--arg mitm "$MITMPKG" \
+		--arg mitmVersion "$mitm_version" \
+		--arg pogoVersion "$pogo_version" \
+		--arg playStoreVersion "$playStoreVersion" \
+		--arg androidVersion "$android_version" \
+		'{
                     username: $username,
                     content: $content,
                     embeds: [
@@ -157,25 +150,25 @@ webhook() {
 
 	log "Sending discord webhook"
 	# Upload the payload JSON and logcat logs to Discord
-    if [[ $installedMitm == com.pokemod.atlas* ]]; then
-        curl -X POST -k -H "Content-Type: multipart/form-data" \
-        -F "payload_json=$payload_json" \
-        -F "logcat=@$temp_dir/logcat_${MITMPKG}_${timestamp}_${mac_address_nodots}_selfSentLog.log" \
-        -F "atlaslog=@/data/local/tmp/atlas.log" \
-        "$discord_webhook"
-    # Check for com.pokemod.aegis* package and send webhook with aegis.log (or specific log for aegis)
-    elif [[ $installedMitm == com.pokemod.aegis* ]]; then
+	if [[ $MITMPKG == com.pokemod.atlas* ]]; then
 		curl -X POST -k -H "Content-Type: multipart/form-data" \
-        -F "payload_json=$payload_json" \
-        -F "logcat=@$temp_dir/logcat_${MITMPKG}_${timestamp}_${mac_address_nodots}_selfSentLog.log" \
-        -F "aegislog=@/data/local/tmp/aegis.log" \
-        "$discord_webhook"
+			-F "payload_json=$payload_json" \
+			-F "logcat=@$temp_dir/logcat_${MITMPKG}_${timestamp}_${mac_address_nodots}_selfSentLog.log" \
+			-F "atlaslog=@/data/local/tmp/atlas.log" \
+			"$discord_webhook"
+	# Check for com.pokemod.aegis* package and send webhook with aegis.log (or specific log for aegis)
+	elif [[ $MITMPKG == com.pokemod.aegis* ]]; then
+		curl -X POST -k -H "Content-Type: multipart/form-data" \
+			-F "payload_json=$payload_json" \
+			-F "logcat=@$temp_dir/logcat_${MITMPKG}_${timestamp}_${mac_address_nodots}_selfSentLog.log" \
+			-F "aegislog=@/data/local/tmp/aegis.log" \
+			"$discord_webhook"
 	else
 		# curl -X POST -k -H "Content-Type: multipart/form-data" -F "payload_json=$payload_json" "$discord_webhook" -F "logcat=@$temp_dir/logcat_${MITMPKG}_${timestamp}_${mac_address_nodots}_selfSentLog.log"
 		curl -X POST -k -H "Content-Type: multipart/form-data" \
-        -F "payload_json=$payload_json" \
-        -F "logcat=@$temp_dir/logcat_${MITMPKG}_${timestamp}_${mac_address_nodots}_selfSentLog.log" \
-    	"$discord_webhook"
+			-F "payload_json=$payload_json" \
+			-F "logcat=@$temp_dir/logcat_${MITMPKG}_${timestamp}_${mac_address_nodots}_selfSentLog.log" \
+			"$discord_webhook"
 	fi
 	# Clean up temporary files
 	rm -rf "$temp_dir"
@@ -188,9 +181,9 @@ webhook() {
 # fi
 
 # Set mitm mock location permission as ignore
-if ! appops get $installedMitm android:mock_location | grep -qm1 'No operations'; then
-	log "Removing mock location permissions from $installedMitm"
-	appops set $installedMitm android:mock_location 2
+if ! appops get $MITMPKG android:mock_location | grep -qm1 'No operations'; then
+	log "Removing mock location permissions from $MITMPKG"
+	appops set $MITMPKG android:mock_location 2
 fi
 
 # Disable all location providers
@@ -251,8 +244,8 @@ fi
 # Check if ADB over Wi-Fi is disabled (adb_wifi_enabled is set to 0)
 adb_wifi_status=$(settings get global adb_wifi_enabled)
 if [ "$adb_wifi_status" -eq 0 ]; then
-    log "ADB over Wi-Fi is currently disabled. Enabling it..."
-    settings put global adb_wifi_enabled 1
+	log "ADB over Wi-Fi is currently disabled. Enabling it..."
+	settings put global adb_wifi_enabled 1
 fi
 
 # Check and set permissions for adb_keys
@@ -260,52 +253,53 @@ adb_keys_file="/data/misc/adb/adb_keys"
 if [ -e "$adb_keys_file" ]; then
 	current_permissions=$(stat -c %a "$adb_keys_file")
 	if [ "$current_permissions" -ne 640 ]; then
-		log  "Changing permissions for $adb_keys_file to 640..."
+		log "Changing permissions for $adb_keys_file to 640..."
 		chmod 640 "$adb_keys_file"
 	fi
 fi
 
-# Download cacert to use certs instead of curl -k 
+# Download cacert to use certs instead of curl -k
 cacert_path="/data/local/tmp/cacert.pem"
 if [ ! -f "$cacert_path" ]; then
 	log "Downloading cacert.pem..."
 	curl -k -o "$cacert_path" https://curl.se/ca/cacert.pem
 fi
 
-if result=$(installedMitm); then
-    (
-        log "Starting in 2 minutes, found installed MITM: $installedMitm"
-        counter=0
-        log "Count at $counter"
-        webhook "Device boot!"
+if ! [-z "$MITMPKG"]; then
+	(
+		log "Starting in 2 minutes, found installed MITM: $MITMPKG"
+		counter=0
+		log "Count at $counter"
+		webhook "Device boot!"
 
-        # this again... but simple(I think)
-        while :; do
-            sleep_duration=60
-            sleep $((sleep_duration+$RANDOM%10))
-            if [[$counter -gt 3]]; then
-                log "Count threshold of $counter reached. Rebooting device..."
-                webhook "Restart threshold of $counter reached. Rebooting device..."
-                reboot 
-                sleep 60 # In case reboot takes too long for some reason
-            fi
+		# this again... but simple(I think)
+		while :; do
+			sleep_duration=120
+			sleep $((sleep_duration + $RANDOM % 10))
+			if [[$counter -gt 3]]; then
+				log "Count threshold of $counter reached. Rebooting device..."
+				webhook "Restart threshold of $counter reached. Rebooting device..."
+				reboot
+				sleep 60 # In case reboot takes too long for some reason
+			fi
 
-            log "Health check started!"
-            if [[$installedMitm == "com.nianticlabs.pokemongo.ares"]]; then
-                if ! busybox ps -a | grep -v grep | grep "com.nianticlabs.pokemongo.ares"; then
-                    log "$installedMitm is not running, let's start it up!"
-                    am start -n $installedMitm/.MainActivity
-                    counter=$((counter+1))
-                else
-                    log "$installedMitm is running. Nothing to do here."
-                    counter=0
-                fi
-            fi
-            continue
-        done
-    ) &
-else 
-    log "No known MITM was found installed on the device. Cya."
+			log "Health check started!"
+			if [["$MITMPKG" == "com.nianticlabs.pokemongo.ares"]]; then
+				if busybox ps -a | grep -v grep | grep "com.nianticlabs.pokemongo.ares"; then
+					log "$MITMPKG is running. Nothing to do here."
+					counter=0
+				else
+					log "$MITMPKG is not running, let's start it up!"
+					am start -n "$MITMPKG/.MainActivity"
+					# monkey -p "$MITMPKG" 1
+					counter=$((counter + 1))
+				fi
+			fi
+			continue
+		done
+	) &
+else
+	log "No known MITM was found installed on the device. Cya."
 fi
 
 #ENDOFFILE
