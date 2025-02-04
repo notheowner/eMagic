@@ -39,9 +39,6 @@ installedMitm() {
 	elif [ "$(pm list packages com.pokemod.aegis)" = "package:com.pokemod.aegis" ]; then
 		log "Found Aegis production version!"
 		MITMPKG=com.pokemod.aegis
-	elif [ "$(pm list packages com.pokemod.atlas.beta)" = "package:com.pokemod.atlas.beta" ]; then
-		log "Found Atlas developer version!"
-		MITMPKG=com.pokemod.atlas.beta
 	elif [ "$(pm list packages com.nianticlabs.pokemongo.ares)" = "package:com.nianticlabs.pokemongo.ares" ]; then
 		log "Found Cosmog (Ares pkg name version)!"
 		MITMPKG=com.nianticlabs.pokemongo.ares
@@ -66,7 +63,7 @@ get_deviceName() {
 	elif [[ $MITMPKG == com.gocheats.launcher ]] && [ -f /data/local/tmp/config.json ]; then
 		mitmDeviceName=$(jq -r '.device_name' /data/local/tmp/config.json)
 	else
-		log -p i -t eMagiskATVService "Couldn't find the config file"
+		log "Couldn't find the config file"
 	fi
 }
 
@@ -265,9 +262,9 @@ if [ ! -f "$cacert_path" ]; then
 	curl -k -o "$cacert_path" https://curl.se/ca/cacert.pem
 fi
 
-if ! [-z "$MITMPKG"]; then
+if ! [ -z "$MITMPKG" ]; then
 	(
-		log "Starting in 2 minutes, found installed MITM: $MITMPKG"
+		log "Starting in 2 minutes, installed MITM: $MITMPKG"
 		counter=0
 		log "Count at $counter"
 		webhook "Device boot!"
