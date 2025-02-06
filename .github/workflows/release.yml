@@ -1,32 +1,24 @@
-name: Release
+name: "latest-main"
 
 on:
   push:
     branches:
-      - main
+      - "main"
   workflow_dispatch:
 
 jobs:
-  build-and-release:
+  Release:
+    name: "Latest Main"
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Build eMagic
-        run: zip -r emagic.zip . -x ".git/*" "build.sh" ".gitignore" "*zip"
-
-      - name: Get commit hash
-        id: vars
-        run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
-
-      - name: Release
-        uses: softprops/action-gh-release@v2
+      - uses: actions/checkout@v3
+      - name: "Build"
+        run: |
+          zip -r emagic.zip . -x ".git/*" "build.sh" ".gitignore" "*zip"
+      - uses: "marvinpinto/action-automatic-releases@latest"
         with:
-          tag_name: latest
-          release_name: "Latest Build (${{ env.sha_short }})"
-          files: emagic.zip
-          token: ${{ secrets.GITHUB_TOKEN }}
-          draft: false
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          automatic_release_tag: "latest"
           prerelease: false
+          files: |
+            *.zip
