@@ -13,10 +13,9 @@ get_config() {
 		source $CONFIGFILE
 		export timezone discord_webhook
 	else
-		log "Failed to pull the config file. Make sure $($CONFIGFILE) exists and has the correct data."
+		log "Failed to pull the config file. Make sure $CONFIGFILE exists and has the correct data."
 	fi
 }
-get_config
 
 runningMitm() {
 	busybox ps aux | grep -E -C0 "pokemod|gocheats|sy1vi3|ares" |
@@ -31,7 +30,7 @@ runningMitm() {
 		sed -e 's/^[0-9]*://' -e 's@:.*@@g' |
 		sort | uniq
 }
-MITMPKG=""
+
 installedMitm() {
 	if [ "$(pm list packages com.pokemod.aegis.beta)" = "package:com.pokemod.aegis.beta" ]; then
 		log "Found Aegis developer version!"
@@ -50,10 +49,9 @@ installedMitm() {
 		exit 1
 	fi
 }
-installedMitm
 
 # Keeping this for the webhook mainly
-get_deviceName() {
+getDeviceName() {
 	if [[ $MITMPKG == com.pokemod.atlas* ]] && [ -f /data/local/tmp/atlas_config.json ]; then
 		mitmDeviceName=$(jq -r '.deviceName' /data/local/tmp/atlas_config.json)
 	elif [[ $MITMPKG == com.pokemod.aegis* ]] && [ -f /data/local/tmp/aegis_config.json ]; then
@@ -170,6 +168,10 @@ webhook() {
 	# Clean up temporary files
 	rm -rf "$temp_dir"
 }
+
+get_config
+MITMPKG=""
+installedMitm
 
 # Disable playstore alltogether (no auto updates)
 # if [ "$(pm list packages -e com.android.vending)" = "package:com.android.vending" ]; then
