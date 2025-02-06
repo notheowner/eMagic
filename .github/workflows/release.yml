@@ -1,11 +1,10 @@
-name: Release Magisk Module
+name: Release
 
 on:
   push:
     branches:
-      - 'main'
+      - main  # Trigger on pushes to the main branch
   workflow_dispatch:
-    
 
 jobs:
   build-and-release:
@@ -15,8 +14,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Build module
+      - name: Build Magisk Module
         run: zip -r emagic.zip . -x ".git/*" "build.sh" ".gitignore" "*zip"
+
+      - name: Get current date and time
+        id: get_date
+        run: echo "::set-output name=date::$(date '+%Y%m%d-%H%M%S')"
 
       - name: Create Release
         id: create_release
@@ -24,9 +27,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          release_name: eMagic ${{ github.ref }}
-          body: ${{ github.ref }} # Simple release notes
-          draft: false
+          tag_name: latest
+          release_name: emagic-main-${{ steps.get_date.outputs.date }}
+          draft: false 
+          prerelease: false
 
       - name: Upload
         if: ${{ steps.create_release.outputs.release_id }}
@@ -34,4 +38,4 @@ jobs:
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: emagic.zip
-          asset_name: emagic-${{ github.ref }}.zip
+          asset_name: emagic-main-${{ steps.get_date.outputs.date }}.zip
