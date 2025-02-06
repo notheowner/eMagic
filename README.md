@@ -1,12 +1,20 @@
-# A module for mapping ATVs with some binaries and useful functions.
-# Only works with Cosmog atm.
+# eMagic | A module for mapping ATVs with some binaries and useful functions.
 
-Based on the original eMagisk, but without all the bloat that slowed down the shell on ATVs.
+## Description
 
+Based on the original eMagisk by emi and later on maintained by Astu but without loading 100 bash-completions and functions that are not needed on an ATV.
+## The idea
+The MITM healthcheck is intended to be very basic.\
+If mitm is kill, make it un-kill :)
+Anything else should in theory be handled by the MITM app.
 
-## If release CI not working
+## Issues
+Any problems or concerns, raise an issue or pull request.
+* As of now only Cosmog is supported by the healthcheck.
+
+## Releases
+Github actions build based on latest commit in main branch.\
+As Magisk modules are simple zip files. You can just zip the repo with any personal changes you want.
 ```console
-git clone
-
-zip -r emagic.zip . -x ".git/*" "build.sh" ".gitignore" "*zip"
+zip -r emagic.zip . -x ".git/*" "build.sh" ".gitignore" "*zip" ".github/*"
 ```
