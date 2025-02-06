@@ -275,7 +275,7 @@ if ! [ -z "$MITMPKG" ]; then
 		while :; do
 			sleep_duration=120
 			sleep $((sleep_duration + $RANDOM % 10))
-			if [[$counter -gt 3]]; then
+			if [[ $counter -gt 3 ]]; then
 				log "Count threshold of $counter reached. Rebooting device..."
 				webhook "Restart threshold of $counter reached. Rebooting device..."
 				reboot
@@ -283,13 +283,13 @@ if ! [ -z "$MITMPKG" ]; then
 			fi
 
 			log "Health check started!"
-			if [["$MITMPKG" == "com.nianticlabs.pokemongo.ares"]]; then
+			if [[ "$MITMPKG" == "com.nianticlabs.pokemongo.ares" ]]; then
 				if busybox ps -a | grep -v grep | grep "com.nianticlabs.pokemongo.ares"; then
 					log "$MITMPKG is running. Nothing to do here."
 					counter=0
 				else
 					log "$MITMPKG is not running, let's start it up!"
-					am start -n "$MITMPKG/.MainActivity"
+					am start -n "$MITMPKG"/.MainActivity
 					# monkey -p "$MITMPKG" 1
 					counter=$((counter + 1))
 				fi
