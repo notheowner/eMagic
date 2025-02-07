@@ -4,7 +4,8 @@
 POGOPKG=com.nianticlabs.pokemongo
 CONFIGFILE='/data/local/tmp/emagic.config'
 logfile=/data/local/tmp/emagic.log
-setprop net.dns1 1.1.1.1 && setprop net.dns2 8.8.8.8
+# Default to ROM's DNS settings for now.
+# setprop net.dns1 1.1.1.1 && setprop net.dns2 8.8.8.8
 
 # Check if $CONFIGFILE exists and has data.
 get_config() {
@@ -276,7 +277,7 @@ if ! [ -z "$MITMPKG" ]; then
 			sleep_duration=120
 			sleep $((sleep_duration + $RANDOM % 10))
 			if [[ $counter -gt 3 ]]; then
-				log "Count threshold of $counter reached. Rebooting device..."
+				log "Restart threshold of $counter reached. Rebooting device..."
 				webhook "Restart threshold of $counter reached. Rebooting device..."
 				reboot
 				sleep 60 # In case reboot takes too long for some reason
