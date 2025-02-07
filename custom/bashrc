@@ -57,6 +57,7 @@ alias ll='ls -lh --color=always'
 alias la='ls -lAh --color=always'
 alias sed="sed -E"
 alias logcat="logcat -b all -v color -v usec -v uid"
+alias grep='grep --color=auto'
 
 export ANDROID_DATA=/data
 export ANDROID_ROOT=/data
