@@ -16,7 +16,7 @@ if [ -f /sdcard/.inputrc ]; then
     bind -f /sdcard/.inputrc
 fi
 
-### Env Variables ### 
+### Env Variables ###
 export EDITOR="nano"
 
 ### BASH HISTORY ###
@@ -58,21 +58,21 @@ alias la='ls -lAh --color=always'
 alias sed="sed -E"
 alias logcat="logcat -b all -v color -v usec -v uid"
 
-export ANDROID_DATA=/data;
-export ANDROID_ROOT=/data;
+export ANDROID_DATA=/data
+export ANDROID_ROOT=/data
 
 # Astu's monstrosity
-runningMitm() { 
-    busybox ps aux | grep -E -C0 "pokemod|gocheats|sy1vi3|ares" | \
-        grep -C0 -v grep | \
+runningMitm() {
+    busybox ps aux | grep -E -C0 "pokemod|gocheats|sy1vi3|ares" |
+        grep -C0 -v grep |
         awk -F ' ' '
             /com.pokemod/ { print $NF } 
             /com.sy1vi3/ { print $NF } 
             /com.nianticlabs.pokemongo.ares/ { print $NF } 
             /com.gocheats.launcher/ { print $NF }
-        ' | \
-        grep -E -C0 "gocheats|pokemod|sy1vi3|ares" | \
-        sed -e 's/^[0-9]*://' -e 's@:.*@@g' | \
+        ' |
+        grep -E -C0 "gocheats|pokemod|sy1vi3|ares" |
+        sed -e 's/^[0-9]*://' -e 's@:.*@@g' |
         sort | uniq
 }
 
@@ -88,28 +88,27 @@ installedMitm() {
     for pkg in $MITM_PACKAGES; do
         if [ "$(pm list packages "$pkg")" = "package:$pkg" ]; then
             case "$pkg" in
-                com.pokemod.aegis.beta)
-                    echo "Found Aegis developer version!"
-                    ;;
-                com.pokemod.aegis)
-                    echo "Found Aegis production version!"
-                    ;;
-                com.sy1vi3.cosmog)
-                    echo "Found Cosmog!"
-                    ;;
-                com.nianticlabs.pokemongo.ares)
-                    echo "Found Cosmog (Ares pkg name version)!"
-                    ;;
-                com.gocheats.launcher)
-                    echo "Found GC!"
-                    ;;
+            com.pokemod.aegis.beta)
+                echo "Found Aegis developer version!"
+                ;;
+            com.pokemod.aegis)
+                echo "Found Aegis production version!"
+                ;;
+            com.sy1vi3.cosmog)
+                echo "Found Cosmog!"
+                ;;
+            com.nianticlabs.pokemongo.ares)
+                echo "Found Cosmog (Ares pkg name version)!"
+                ;;
+            com.gocheats.launcher)
+                echo "Found GC!"
+                ;;
             esac
             MITMPKG="$pkg"
             return 0
         fi
     done
-    echo "No MITM installed. Abort!"
-    exit 1
+    echo "No MITM installed."
 }
 
 POGOPKG=com.nianticlabs.pokemongo
@@ -121,4 +120,3 @@ temperature() {
 
 ## Prompt in alien language(bash)
 export PS1='\[\e]0;$(getprop ro.product.device) - \s\a\]\[\e[1;31m\]\$ \[\e[1;32m\]${USER:-unknown}\[\e[0m\]@\[\e[1;36m\]$(getprop ro.product.device)\[\e[0m\]:\[\e[1;34m\]\w\[\e[0m\] '
-
