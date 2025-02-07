@@ -1,9 +1,12 @@
 # eMagic | A module for mapping ATVs with some binaries and useful functions.
 
 ## Description
-
 Based on the original eMagisk by emi and later on maintained by Astu but without loading 100 bash-completions and functions that are not needed on an ATV.
-## The idea
+
+### emagic.config
+Config is not required by default but can set convenient things on a device like timezone or a discord webhook for alerts(courtesy of Zaxos).
+
+## The healthcheck idea
 The MITM healthcheck is intended to be very basic.\
 If mitm is kill, make it un-kill :)
 Anything else should in theory be handled by the MITM app.
